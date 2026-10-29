@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pocketflow-opt"
+version = "0.1.0"
+description = "Pocket-conditioned lead optimization built on the PocketFlow autoregressive flow"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "torch>=2.2",
+    "numpy>=1.26",
+    "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+chem = ["rdkit>=2023.9"]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["pocketflow_opt*"]

@@ -11,25 +11,10 @@ import argparse
 
 import torch
 
+from pocketflow_opt.chem import featurize
 from pocketflow_opt.edit.mask import Fragment
 from pocketflow_opt.edit.operators import RGroupGrowth, ScaffoldHop, LinkerRedesign, regrow
-from pocketflow_opt.geometry.gdbp import GeomGraph
 from pocketflow_opt.models.pocketflow import PocketFlow
-
-
-def load_geom(path: str) -> GeomGraph:
-    """Placeholder loader: real systems parse SDF/PDB into typed graphs.
-    Here we fabricate a minimal graph so the CLI runs end-to-end."""
-    n = 8
-    coords = torch.randn(n, 3) * 2.0
-    scalars = torch.randn(n, 128)
-    vectors = torch.zeros(n, 32, 3)
-    src = torch.arange(n).roll(1)
-    edge_index = torch.stack([torch.arange(n), src])
-    edge_attr = torch.zeros(n, 8)
-    edge_attr[:, 1] = 1.0
-    batch = torch.zeros(n, dtype=torch.long)
-    return GeomGraph(coords, scalars, vectors, edge_index, edge_attr, batch)
 
 
 def main() -> None:
@@ -46,13 +31,16 @@ def main() -> None:
     ap.add_argument("--ckpt", default=None)
     args = ap.parse_args()
 
-    lead_graph = load_geom(args.lead)
-    pocket = load_geom(args.pocket)
+    lead_graph = featurize.load_ligand(args.lead)
+    pocket = featurize.load_pocket(args.pocket, ref_mol=lead_graph)
+    # frontier indices refer to lead atoms; lead stays the first block of the
+    # merged context graph, so they remain valid after the pocket is appended
+    context = featurize.merge_graphs(lead_graph, pocket)
     model = PocketFlow()
     if args.ckpt:
         model.load_pretrained(args.ckpt)
 
-    n_atoms = lead_graph.coords.shape[0]
+    n_atoms = lead_graph.coords.shape[0]  # operator defaults index the lead
     if args.operator == "rgroup":
         op = RGroupGrowth(
             substituent_atoms=torch.tensor(args.variable or [n_atoms - 1]),
@@ -69,7 +57,7 @@ def main() -> None:
             warhead_a_frontier=torch.tensor(args.frontier[:1]),
             warhead_b_frontier=torch.tensor(args.frontier[-1:]))
 
-    fragment = Fragment(graph=lead_graph, frontier=op.frontier_atoms
+    fragment = Fragment(graph=context, frontier=op.frontier_atoms
                         if hasattr(op, "frontier_atoms")
                         else torch.tensor(args.frontier))
 

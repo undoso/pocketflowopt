@@ -94,7 +94,9 @@ def regrow(model, fragment: Fragment, pocket, budget: int = 24,
     base = merged.coords.shape[0]
 
     for _ in range(budget):
-        frontier = torch.cat([fragment.frontier, grown.atoms(base)])
+        frontier = torch.cat([
+            fragment.frontier.to(merged.coords.device),
+            grown.atoms(base, device=merged.coords.device)])
         focal = model.focal.sample(ctx.graph, ctx.ctx.squeeze(0), frontier,
                                    temperature=temperature)
         if focal is STOP:
@@ -109,7 +111,8 @@ def regrow(model, fragment: Fragment, pocket, budget: int = 24,
                                        ctx.ctx)
         elem_idx = int(elem.argmax(-1).item())
         bond_map = {focal: _bond_attr(bonds, merged)}
-        if not constraints.ok(grown, fragment, pocket, elem_idx, xyz, bond_map):
+        if not constraints.ok(grown, merged.coords, pocket, elem_idx, xyz,
+                              bond_map):
             continue  # support restriction (Eq. 6): illegal action masked
         grown.add(elem_idx, xyz, bond_map)
         merged = fragment.fuse(grown)

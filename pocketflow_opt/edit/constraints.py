@@ -43,16 +43,20 @@ def ring_rule_ok(grown, order: int) -> bool:
     return n_double < MAX_DOUBLE_BONDS_IN_RING6
 
 
-def ok(grown, fragment, pocket, elem_idx: int, xyz: torch.Tensor,
+def ok(grown, coords: torch.Tensor, pocket, elem_idx: int, xyz: torch.Tensor,
        bond_map: dict) -> bool:
-    """Aggregate step-level legality check (Eq. 6 indicator)."""
+    """Aggregate step-level legality check (Eq. 6 indicator).
+
+    coords: coordinates of the current merged graph (fragment + grown), so
+    bond_map keys may reference grown atoms (indices >= fragment size).
+    """
     if not min_distance_ok(xyz, pocket):
         return False
     for dst, attr in bond_map.items():
         order = int(attr.argmax().item())
         if order == 0:
             continue
-        dist = (fragment.graph.coords[dst] - xyz).norm().item()
+        dist = (coords[dst] - xyz).norm().item()
         if not bond_length_ok(order, dist):
             return False
         if not valence_ok(elem_idx, 0, order):

@@ -38,7 +38,9 @@ class Fragment:
     def fuse(self, grown: "GrownRegion") -> GeomGraph:
         """Merge the regrown region into the fragment graph."""
         base = self.graph.coords.shape[0]
-        coords = torch.cat([self.graph.coords, grown.coords()], dim=0)
+        coords = torch.cat(
+            [self.graph.coords, grown.coords().to(self.graph.coords.device)],
+            dim=0)
         scalars = torch.cat([self.graph.scalars, grown.scalars(self.graph)], dim=0)
         vectors = torch.cat(
             [self.graph.vectors,
@@ -64,11 +66,11 @@ class GrownRegion:
     def size(self) -> int:
         return len(self._records)
 
-    def atoms(self, base: int = 0) -> torch.Tensor:
+    def atoms(self, base: int = 0, device=None) -> torch.Tensor:
         """Node indices of grown atoms (offset by the fixed-graph size)."""
         if not self._records:
-            return torch.empty(0, dtype=torch.long)
-        return torch.arange(base, base + len(self._records))
+            return torch.empty(0, dtype=torch.long, device=device)
+        return torch.arange(base, base + len(self._records), device=device)
 
     def add(self, elem_idx: int, xyz: torch.Tensor, bonds: dict) -> None:
         self._records.append((elem_idx, xyz.detach(), bonds))

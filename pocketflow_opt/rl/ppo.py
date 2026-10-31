@@ -41,11 +41,11 @@ def ppo_loss(policy, ref, batch: RolloutBatch,
     policy / ref: PocketFlow instances; ref is frozen. Each rollout carries
     the context (fixed fragment + pocket) in trace[0]['context'].
     """
-    adv = batch.advantages
-    logp_old = batch.logp_old
     logp = torch.stack([
         policy.trace_loglik(ro.trace, ro.trace[0]["context"])
         for ro in batch.rollouts])
+    adv = batch.advantages.to(logp.device)
+    logp_old = batch.logp_old.to(logp.device)
     with torch.no_grad():
         logp_ref = torch.stack([
             ref.trace_loglik(ro.trace, ro.trace[0]["context"])
